@@ -6,13 +6,20 @@ In doing so, the orignial sound will be distorted to sound like the generated si
 
 import numpy as np
 import thinkdsp
+import pyaudio
 
-def vocoder(filename = "flesh_wound.wav", signal_type = "sin", pitch = 220, sample = 1.0/200, ):
+def vocoder(filename = "flesh_wound.wav", signal_type = "saw", pitch = 220, sample = 1.0/100, ):
+
     voice_wave = thinkdsp.read_wave(filename)
+    frames= voice_wave.framerate
     print(voice_wave.duration)
     print(voice_wave.framerate)
     #wave.normalize()
-    voice_wave.make_audio()
+    p = pyaudio.PyAudio()
+    stream = p.open(format = pyaudio.paInt16,channels=1, rate=frames, input=False, output=True)     
+    print(voice_wave.ys.astype(np.int16))
+    stream.write(voice_wave.ys.astype(np.int16).tostring())
+#    stream.stop_stream()
     
     'Turns the input wave into segmented parts to vocode properlly'
     voice_seg = []
@@ -20,37 +27,33 @@ def vocoder(filename = "flesh_wound.wav", signal_type = "sin", pitch = 220, samp
         voice_seg.append(voice_wave.segment(s,sample))
     
     v_spectrum = voice_wave.make_spectrum()
-    v_spectrum.plot()
+#    v_spectrum.plot()
     
     'Chooses what generated signal to use, and at what pitch.'
     if signal_type == 'saw':
-        sig = thinkdsp.SawtoothSignal(freq=pitch, amp=0.5, offset=0)
+        sig = thinkdsp.SawtoothSignal(freq=pitch, amp=1000, offset=0)
     elif signal_type == 'sin':
         sig = thinkdsp.SinSignal(freq=pitch, amp=1, offset=0)
     elif signal_type == 'cos':
         sig = thinkdsp.CosSignal(freq=pitch, amp=1, offset=0)
     elif signal_type == 'tri':
-        sig = thinkdsp.TriangleSignal(freq=pitch, amp=0.5, offset=0)
+        sig = thinkdsp.TriangleSignal(freq=pitch, amp=1, offset=0)
     elif signal_type == 'sqr':
-        sig = thinkdsp.SquareSignal(freq=pitch, amp=0.5, offset=0)
+        sig = thinkdsp.SquareSignal(freq=pitch, amp=1, offset=0)
     elif signal_type == 'par':
-        sig = thinkdsp.ParabolicSignal(freq=pitch, amp=0.5, offset=0)
-    sig = thinkdsp.SawtoothSignal(freq=pitch, amp=0.5, offset=0)
+        sig = thinkdsp.ParabolicSignal(freq=pitch, amp=1, offset=0)
     wave=sig.make_wave(framerate = voice_wave.framerate, duration = voice_wave.duration)
     #wave.normalize()
-    wave.apodize()
-    wave.plot()
-    wave.make_audio()
-    
+#    wave.apodize()
+#    wave.plot()
+#    stream.write(wave.ys.astype(np.int16).tostring())
+    print wave.ys
+#    for ys in wave:
+#        print ys    
     'Seperated the generated signal into equal segments as the voice wave.'
     Seg = []
     for s in np.arange(0,wave.duration,sample):
         Seg.append(wave.segment(s,sample))
-        
-    spec = wave.make_spectrum()
-    spec.plot()
-    
-    frames= voice_wave.framerate
     
     """This is the vocoder.  It multiplies the amplitudes of two seperate signals
     to produce a singular response"""    
@@ -61,12 +64,19 @@ def vocoder(filename = "flesh_wound.wav", signal_type = "sin", pitch = 220, samp
             vocoder_wave =vocoder_spec.make_wave()
         else:
              vocoder_wave |= vocoder_spec.make_wave()
-    vocoder_wave.plot()
+#    vocoder_wave.plot()
     
-    vocoder_wave.make_spectrum().plot()
+#    vocoder_wave.make_spectrum().plot()
     
     vocoder_wave.normalize()
-    vocoder_wave.make_audio()
+    stream = p.open(format = pyaudio.paInt16,channels=1, rate=frames, input=False, output=True)
+    print (vocoder_wave.ys*2**13).astype(np.int16)
+    stream.write((vocoder_wave.ys*2**13).astype(np.int16).tostring())
+    stream.stop_stream()
+    stream.close()
+    p.terminate() 
+    print "done"
+    
     return (vocoder_wave)
 
 if __name__ == "__main__":
