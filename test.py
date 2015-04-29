@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Apr 22 22:52:10 2015
+Created on Tue Apr 28 22:52:10 2015
 
 @author: Jacob Riedel and Deniz Celik
 """
@@ -9,11 +9,10 @@ import numpy as np
 import thinkdsp
 import pyaudio
 from array import array
-import time
 
 
 class vocoder():
-    def __init__(self,filename = "flesh_wound.wav", signal_type = "Sawtooth", pitch = 440, num_channel = 1024, num_band = 32):
+    def __init__(self,filename = "flesh_wound.wav", signal_type = "saw", pitch = 440, num_channel = 1024, num_band = 32):
         
         self.num_bands = num_band
         self.num_channels = num_channel
@@ -46,7 +45,7 @@ class vocoder():
     def set_num_channel(self, new_num):
         self.num_channels = new_num        
         
-    def record_input(self,recordtime = 6):
+    def record_input(self):
         chunk = 1024
         self.framerate = 41000
         self.pya = pyaudio.PyAudio() # initialize pyaudio
@@ -56,9 +55,8 @@ class vocoder():
            input = True,
            output = True,
            frames_per_buffer = chunk)
-        data = self.get_samples_from_mic(self.framerate,300,chunk,recordtime)
+        data = self.get_samples_from_mic(self.framerate,300,chunk)
         self.input = thinkdsp.Wave(data,self.framerate)
-        self.duration = self.input.duration
         self.stream.close()
         self.pya.terminate()
     
@@ -75,18 +73,17 @@ class vocoder():
     
     def Sig_generate(self):
         'Chooses what generated signal to use, and at what pitch.'
-        #print self.signal_type
-        if self.signal_type == 'Sawtooth':
+        if self.signal_type == 'saw':
             sig = thinkdsp.SawtoothSignal(freq=self.pitch, amp=1, offset=0)
-        elif self.signal_type == 'Sin':
+        elif self.signal_type == 'sin':
             sig = thinkdsp.SinSignal(freq=self.pitch, amp=1, offset=0)
-        elif self.signal_type == 'Cos':
+        elif self.signal_type == 'cos':
             sig = thinkdsp.CosSignal(freq=self.pitch, amp=1, offset=0)
-        elif self.signal_type == 'Triangle':
+        elif self.signal_type == 'tri':
             sig = thinkdsp.TriangleSignal(freq=self.pitch, amp=1, offset=0)
-        elif self.signal_type == 'Square':
+        elif self.signal_type == 'sqr':
             sig = thinkdsp.SquareSignal(freq=self.pitch, amp=1, offset=0)
-        elif self.signal_type == 'Parabolic':
+        elif self.signal_type == 'par':
             sig = thinkdsp.ParabolicSignal(freq=self.pitch, amp=1, offset=0)
         wav=sig.make_wave(framerate = self.framerate, duration = self.duration)           
         return wav
@@ -128,20 +125,19 @@ class vocoder():
         return output
         
         
-    def update(self,ident):
+    def update(self):
         self.channel = self.Sig_generate()        
         self.channel_spec = self.spectrum_gen(self.channel)
         self.input_spec = self.spectrum_gen(self.input)
         
-        if(ident=="v"):
-            input_seg = self.segmentor(self.input)        
-            channel_seg = self.segmentor(self.channel)
-            
-            voded_wave = self.vocode(input_seg,channel_seg)
-            self.output = voded_wave
-            self.output_spec = self.spectrum_gen(self.output)
+        input_seg = self.segmentor(self.input)        
+        channel_seg = self.segmentor(self.channel)
+
+        voded_wave = self.vocode(input_seg,channel_seg)
+        self.output = voded_wave
+        self.output_spec = self.spectrum_gen(self.output)
         
-    def get_samples_from_mic(self, sample_rate = 8000, threshold = 1000, chunk_size = 1000, recordtime = 6):
+    def get_samples_from_mic(sample_rate = 8000, threshold = 1000, chunk_size = 1000):
         # initialize pyaudio object
         p = pyaudio.PyAudio()
         stream = p.open(format=pyaudio.paInt16, channels=1, rate=sample_rate,
@@ -164,7 +160,6 @@ class vocoder():
        # append the sound data from the previous chunk into the array             
         data_vec.extend(snd_data)
         # collect samples until we get a silent block
-        start = time.time()
         while 1:
             # read a chunk of data
             data = stream.read(chunk_size)
@@ -173,8 +168,7 @@ class vocoder():
             # the samples
             data_vec.extend(snd_data)     
             # if silent break out of loop
-            end = time.time()
-            if end-start>recordtime:#is_silent(snd_data, threshold):
+            if is_silent(snd_data, threshold):
                 break
         # convert to a numpy array   
         # we don't use a numpy array directly because it's slower than
