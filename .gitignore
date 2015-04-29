@@ -55,3 +55,6 @@ docs/_build/
 
 # PyBuilder
 target/
+
+#Temp Wave For playing sounds
+temp.wav
