@@ -111,6 +111,7 @@ class vocoder():
         output = final_wave[0]
         for i in range(1,len(final_wave)):
             output |= final_wave[i]
+        output.make_spectrum().plot()
         return output
         
         
@@ -220,10 +221,8 @@ def make_file(wave):
 
 if __name__ == "__main__":
     wav = []
-    wav = vocoder().get_wave()
-    name = make_file(wav)
-    wav = vocoder(filename=name, signal_type='saw',pitch=440).get_wave()
-    name = make_file(wav)
-    wav = vocoder(filename=name, signal_type='saw',pitch=535).get_wave()
+    wav.append(vocoder().get_wave())
+    wav.append(vocoder(signal_type='saw',pitch=440).get_wave())
+    wav.append(vocoder(signal_type='saw',pitch=535).get_wave())
     wave = combine(wav)
     play_audio(wave)
